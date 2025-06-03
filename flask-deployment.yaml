@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: co2-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: co2-api
+  template:
+    metadata:
+      labels:
+        app: co2-api
+    spec:
+      serviceAccountName: co2-api-service
+      containers:
+      - name: co2-api
+        image: co2-api
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 5001  # Optional, can remove if unused

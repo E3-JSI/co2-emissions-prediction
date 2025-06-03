@@ -1,0 +1,12 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: co2-api-pod-reader-binding
+subjects:
+  - kind: ServiceAccount
+    name: co2-api-service
+    namespace: default
+roleRef:
+  kind: ClusterRole
+  name: pod-reader
+  apiGroup: rbac.authorization.k8s.io
