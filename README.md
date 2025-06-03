@@ -59,7 +59,7 @@ Output tests should yield JSON of different formats, although all fairly simple.
 **Description:** Retrieves a list of container IDs currently being tracked for power consumption.
 
 **Example Query:**
-```http
+```
 curl -X GET http://<your-server-ip>:5001/api/containers
 ```
 
@@ -77,7 +77,7 @@ curl -X GET http://<your-server-ip>:5001/api/containers
 ```
 
 **Example Query:**
-```http
+```
 curl -X POST http://<your-server-ip>:5001/api/power-consumption
 Content-Type: application/json
 
@@ -102,7 +102,7 @@ Content-Type: application/json
 ```
 
 **Example Query:**
-```http
+```
 POST http://<your-server-ip>:5001/api/co2-per-container
 Content-Type: application/json
 
@@ -119,7 +119,7 @@ Content-Type: application/json
 **Description:** Retrieves the latest CO2 intensity values for all tracked countries.
 
 **Example Query:**
-```http
+```
 curl -X GET http://<your-server-ip>:5001/api/co2-intensities
 ```
 
@@ -139,7 +139,7 @@ curl -X GET http://<your-server-ip>:5001/api/co2-intensities
 ```
 
 **Example Query:**
-```http
+```
 curl -X POST http://<your-server-ip>:5001/api/co2-range
 Content-Type: application/json
 
