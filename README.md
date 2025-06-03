@@ -103,7 +103,7 @@ Content-Type: application/json
 
 **Example Query:**
 ```
-POST http://<your-server-ip>:5001/api/co2-per-container
+curl -X POST http://<your-server-ip>:5001/api/co2-per-container
 Content-Type: application/json
 
 {
