@@ -172,7 +172,7 @@ Detailed status endpoint for debugging.
     ```bash
     python -m venv venv
     # On Windows
-    .\venv\Scripts\activate
+    .\\venv\\Scripts\\activate
     # On Linux/macOS
     source venv/bin/activate
     ```
