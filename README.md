@@ -178,6 +178,8 @@ Detailed status endpoint for debugging.
     ```
     The API will be available at `http://localhost:5001`. In this default `local` mode, no database manager is initialized, meaning no data is stored in any external database or mock database. Only the in-memory `TimeSeriesManager` cache retains recent power measurements. All data is lost when the application is stopped or restarted. This is ideal for testing API responses, debugging immediate data flows, or monitoring for small time windows without accumulating historical data.
 
+You can also dockerize and deploy the application in local mode by changing the k8s-deployment.yaml file to set `MODE` to `local` and removing the `TSDB_DSN` environment variable. This will retain the same behavior as running locally without a database. Alternatively for some scenarios, you can use the `MockDatabaseManager` in `db` mode as described below, or use a real TimescaleDB instance for persistent storage.
+
 ### Testing with Mock DB (DB Mode without a real DB)
 
 To test the "db mode" logic while still using the in-memory `MockDatabaseManager` (useful for local development without a real database connection):
