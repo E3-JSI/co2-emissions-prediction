@@ -16,8 +16,7 @@ This Flask API monitors power consumption and calculates CO2 emissions from cont
   - [Environment Variables](#environment-variables)
   - [Local Development and Testing](#local-development-and-testing)
     - [Running Locally](#running-locally)
-    - [Running for Short-Term / No Retention](#running-for-short-term--no-retention)
-    - [Testing with Mock DB](#testing-with-mock-db)
+    - [Testing with Mock DB (DB Mode without a real DB)](#testing-with-mock-db-db-mode-without-a-real-db)
   - [Kubernetes Deployment](#kubernetes-deployment)
     - [Prerequisites](#prerequisites)
     - [Creating the `TSDB_DSN` Secret](#creating-the-tsdb_dsn-secret)
@@ -173,29 +172,15 @@ Detailed status endpoint for debugging.
     pip install -r requirements.txt
     ```
     You will also need a Chrome/Chromium browser and its WebDriver (e.g., `chromedriver`) installed and accessible in your PATH for CO2 intensity scraping to work.
-4.  **Run the application:**
+4.  **Run the application (no database retention):**
     ```bash
     python sth/api2.py
     ```
-    The API will be available at `http://localhost:5001`. By default, it will run in `local/mock DB mode`.
+    The API will be available at `http://localhost:5001`. In this default `local` mode, no database manager is initialized, meaning no data is stored in any external database or mock database. Only the in-memory `TimeSeriesManager` cache retains recent power measurements. All data is lost when the application is stopped or restarted. This is ideal for testing API responses, debugging immediate data flows, or monitoring for small time windows without accumulating historical data.
 
-### Running for Short-Term / No Retention
+### Testing with Mock DB (DB Mode without a real DB)
 
-For quick checks and scenarios where persistent data storage is not desired, you can run the application in its default `local` mode. In this mode:
-
-*   The `MockDatabaseManager` is used, which stores all power measurements and CO2 intensities only in memory.
-*   All data is lost when the application is stopped or restarted.
-*   This is ideal for testing API responses, debugging immediate data flows, or monitoring for small time windows without accumulating historical data.
-
-To run in this mode, simply start the application without setting the `MODE` environment variable to `"db"` (i.e., let it default to `"local"`):
-
-```bash
-python sth/api2.py
-```
-
-### Testing with Mock DB
-
-To test the "db mode" logic while still using the in-memory `MockDatabaseManager` (useful for local development without a real database):
+To test the "db mode" logic while still using the in-memory `MockDatabaseManager` (useful for local development without a real database connection):
 
 1.  **Set environment variables:**
     *   **Windows (PowerShell):**

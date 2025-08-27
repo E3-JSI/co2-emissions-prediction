@@ -389,13 +389,18 @@ time_series_manager = TimeSeriesManager()
 co2_manager = CO2IntensityManager()
 db_manager: Optional[DatabaseManager] = None
 
-if MODE == "db" and TSDB_DSN:
-    db_manager = DatabaseManager(TSDB_DSN)
-    db_manager.connect()
+if MODE == "db":
+    if TSDB_DSN:
+        db_manager = DatabaseManager(TSDB_DSN)
+        db_manager.connect()
+        logging.info("Running in full DB mode.")
+    else:
+        logging.info("Running in mock DB mode (MODE=db but no TSDB_DSN). Blocks will be stored in memory only.")
+        db_manager = MockDatabaseManager()
+        db_manager.connect()
 else:
-    logging.info("Running in local/mock DB mode.")
-    db_manager = MockDatabaseManager()
-    db_manager.connect()
+    logging.info("Running in local mode (no database retention). Blocks are retained in memory cache only.")
+    db_manager = None # Explicitly no DB manager
 
 app = Flask(__name__)
 logging.basicConfig(level=logging.DEBUG)
@@ -527,20 +532,7 @@ def update_co2_intensities():
 threading.Thread(target=sample_kepler_loop, daemon=True).start()
 threading.Thread(target=update_co2_intensities, daemon=True).start()
 
-# Periodically flush pending DB writes if DB mode is enabled
-# The _db_flush_loop is no longer needed as blocks are queued immediately in DB mode.
-# def _db_flush_loop():
-#     while True:
-#         time.sleep(60)
-#         if db_manager:
-#             try:
-#                 db_manager._process_pending_blocks()
-#             except Exception as e:
-#                 logging.warning(f"DB flush loop error: {e}")
 
-if MODE == "db" and TSDB_DSN:
-    # threading.Thread(target=_db_flush_loop, daemon=True).start() # Removed this line
-    pass # Do nothing in this block since _db_flush_loop is removed
 
 # Initial CO2 data loading
 def preload_co2_data():
