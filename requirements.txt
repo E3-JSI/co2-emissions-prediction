@@ -1,6 +1,6 @@
 flask
 selenium
 beautifulsoup4
-kubernetes
 requests
-jsonify
+prometheus_client
+psycopg2-binary
