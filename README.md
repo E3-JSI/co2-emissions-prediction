@@ -9,7 +9,6 @@ This Flask API monitors power consumption and calculates CO2 emissions from cont
     - [`POST /api/power-consumption`](#post-apipower-consumption)
     - [`POST /api/co2-per-container`](#post-apico2-per-container)
     - [`GET /api/containers`](#get-apicontainers)
-    - [`GET /api/export-time-series`](#get-apiexport-time-series)
     - [`GET /api/co2-intensities`](#get-apico2-intensities)
     - [`POST /api/co2-range`](#post-apico2-range)
     - [`GET /health`](#get-health)
@@ -103,14 +102,6 @@ Get a list of all monitored `(pod, container, namespace)` tuples.
     curl http://localhost:5001/api/containers
     ```
 
-### `GET /api/export-time-series`
-Export all raw time series data (measurements within blocks).
-
-*   **Response:** A JSON array of measurement objects, each with `pod`, `container`, `namespace`, `timestamp`, `joules_per_second`, `block_start`, and `block_end`.
-*   **`curl` Example:**
-    ```bash
-    curl http://localhost:5001/api/export-time-series
-    ```
 
 ### `GET /api/co2-intensities`
 Return the latest known CO2 intensity per tracked country (hourly).
