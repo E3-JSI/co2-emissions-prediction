@@ -16,6 +16,7 @@ This Flask API monitors power consumption and calculates CO2 emissions from cont
   - [Environment Variables](#environment-variables)
   - [Local Development and Testing](#local-development-and-testing)
     - [Running Locally](#running-locally)
+    - [Running for Short-Term / No Retention](#running-for-short-term--no-retention)
     - [Testing with Mock DB](#testing-with-mock-db)
   - [Kubernetes Deployment](#kubernetes-deployment)
     - [Prerequisites](#prerequisites)
@@ -163,7 +164,7 @@ Detailed status endpoint for debugging.
     ```bash
     python -m venv venv
     # On Windows
-    .\\venv\\Scripts\\activate
+    .\venv\Scripts\activate
     # On Linux/macOS
     source venv/bin/activate
     ```
@@ -177,6 +178,20 @@ Detailed status endpoint for debugging.
     python sth/api2.py
     ```
     The API will be available at `http://localhost:5001`. By default, it will run in `local/mock DB mode`.
+
+### Running for Short-Term / No Retention
+
+For quick checks and scenarios where persistent data storage is not desired, you can run the application in its default `local` mode. In this mode:
+
+*   The `MockDatabaseManager` is used, which stores all power measurements and CO2 intensities only in memory.
+*   All data is lost when the application is stopped or restarted.
+*   This is ideal for testing API responses, debugging immediate data flows, or monitoring for small time windows without accumulating historical data.
+
+To run in this mode, simply start the application without setting the `MODE` environment variable to `"db"` (i.e., let it default to `"local"`):
+
+```bash
+python sth/api2.py
+```
 
 ### Testing with Mock DB
 
