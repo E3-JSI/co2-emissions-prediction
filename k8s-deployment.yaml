@@ -16,19 +16,20 @@ spec:
     spec:
       containers:
       - name: co2-api
-        image: your-docker-repo/co2-api:latest # Replace with your image
+        image: co2-api:latest # Replace with your image
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 5001
         env:
         - name: MODE
-          value: "db" # Enable DB mode for persistent storage
+          value: "local" # Enable DB mode for persistent storage
         - name: EXPORTER_URL
-          value: "http://kepler-exporter.kepler.svc.cluster.local:9102/metrics" # Kepler service endpoint
-        - name: TSDB_DSN # Reference the secret for the database connection string
-          valueFrom:
-            secretKeyRef:
-              name: co2-db-secret
-              key: TSDB_DSN
+          value: "http://kepler.kepler.svc.cluster.local:9102/metrics" # Kepler service endpoint
+        # - name: TSDB_DSN # Reference the secret for the database connection string
+        #   valueFrom:
+        #     secretKeyRef:
+        #       name: co2-db-secret
+        #       key: TSDB_DSN
 ---
 apiVersion: v1
 kind: Service

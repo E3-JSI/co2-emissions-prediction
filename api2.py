@@ -52,7 +52,7 @@ class TimeSeriesManager:
     """Manages time series data with local cache and DB fallback"""
     
     def __init__(self):
-        self.blocks: Dict[Tuple[str, str, str], deque] = defaultdict(lambda: deque(maxlen=5))  # 12 hours
+        self.blocks: Dict[Tuple[str, str, str], deque] = defaultdict(lambda: deque(maxlen=5))  # Keep last 5 blocks per (pod, container, namespace)
         self.current_block: Dict[Tuple[str, str, str], DataBlock] = {}
         self.last_joules: Dict[Tuple[str, str, str], float] = {}
         self.lock = threading.Lock()

@@ -180,7 +180,8 @@ Detailed status endpoint for debugging.
 
 You can also dockerize and deploy the application in local mode by changing the k8s-deployment.yaml file to set `MODE` to `local` and removing the `TSDB_DSN` environment variable. This will retain the same behavior as running locally without a database. Alternatively for some scenarios, you can use the `MockDatabaseManager` in `db` mode as described below, or use a real TimescaleDB instance for persistent storage.
 
-### Testing with Mock DB (DB Mode without a real DB)
+### Testing with Mock DB (DB Mode without a real DB) 
+(!!Currently out of order!!)
 
 To test the "db mode" logic while still using the in-memory `MockDatabaseManager` (useful for local development without a real database connection):
 
