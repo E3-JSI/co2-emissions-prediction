@@ -2,6 +2,8 @@
 
 This Flask API monitors power consumption and calculates CO2 emissions from containers, providing both real-time data and historical analysis. It supports local in-memory mocking and persistent storage using TimescaleDB.
 
+![Description](images/arhitecture.png)
+
 ## Table of Contents
 - [CO2 Emissions Monitoring API](#co2-emissions-monitoring-api)
   - [Table of Contents](#table-of-contents)
