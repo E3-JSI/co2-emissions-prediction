@@ -23,6 +23,8 @@ This Flask API monitors power consumption and calculates CO2 emissions from cont
     - [Building and Pushing the Docker Image](#building-and-pushing-the-docker-image)
     - [Deploying to Kubernetes](#deploying-to-kubernetes)
     - [Kepler Endpoint Configuration](#kepler-endpoint-configuration)
+    - [License](#license)
+    - [Acknowledgements](#acknowledgements)
 
 ---
 
@@ -335,3 +337,17 @@ spec:
 kubectl get svc -n <kepler-namespace>
 ```
 and looking for the service exposing port 9102 (or similar).
+
+
+### License
+
+CO2 Emissions Monitoring API is distributed under the MIT License. See LICENSE for more information.
+
+
+### Acknowledgements
+
+[StreamStoryPyClient](https://github.com/E3-JSI/StreamStoryPyClient) is developed by the
+[Department for Artificial Intelligence](http://ailab.ijs.si/) at the
+[Jozef Stefan Institute](http://www.ijs.si/), and other contributors.
+
+The project has received funding from the European Union's Horizon Europe innovation programme under Grant Agreement No 101092639 ([FAME](https://www.fame-horizon.eu/)).
