@@ -346,7 +346,7 @@ CO2 Emissions Monitoring API is distributed under the MIT License. See LICENSE f
 
 ### Acknowledgements
 
-[StreamStoryPyClient](https://github.com/E3-JSI/StreamStoryPyClient) is developed by the
+[CO2 Emissions Monitoring API](https://github.com/E3-JSI/co2-emissions-prediction) is developed by the
 [Department for Artificial Intelligence](http://ailab.ijs.si/) at the
 [Jozef Stefan Institute](http://www.ijs.si/), and other contributors.
 
