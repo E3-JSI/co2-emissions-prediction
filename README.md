@@ -1,6 +1,6 @@
 # CO2 Emissions Monitoring API
 
-This Flask API monitors power consumption and calculates CO2 emissions from containers, providing both real-time data and historical analysis. It supports local in-memory mocking and persistent storage using TimescaleDB.
+This Flask API monitors container power consumption and calculates CO2 emissions for selected countries. It supports local in-memory mode and persistent TimescaleDB-backed mode.
 
 ![Description](images/arhitecture.png)
 
@@ -8,149 +8,131 @@ This Flask API monitors power consumption and calculates CO2 emissions from cont
 - [CO2 Emissions Monitoring API](#co2-emissions-monitoring-api)
   - [Table of Contents](#table-of-contents)
   - [API Endpoints](#api-endpoints)
-    - [`POST /api/power-consumption`](#post-apipower-consumption)
     - [`POST /api/co2-per-container`](#post-apico2-per-container)
     - [`GET /api/containers`](#get-apicontainers)
     - [`GET /api/co2-intensities`](#get-apico2-intensities)
-    - [`POST /api/co2-range`](#post-apico2-range)
-    - [`GET /health`](#get-health)
-    - [`GET /api/status`](#get-apistatus)
+    - [`GET /healthz`](#get-healthz)
+    - [`GET /readyz`](#get-readyz)
   - [Environment Variables](#environment-variables)
+  - [Mode Behavior (`local` vs `db`)](#mode-behavior-local-vs-db)
+    - [`MODE=local`](#modelocal)
+    - [`MODE=db`](#modedb)
   - [Local Development and Testing](#local-development-and-testing)
     - [Running Locally](#running-locally)
-    - [Testing with Mock DB (DB Mode without a real DB)](#testing-with-mock-db-db-mode-without-a-real-db)
+    - [Running in DB Mode Locally](#running-in-db-mode-locally)
   - [Kubernetes Deployment](#kubernetes-deployment)
     - [Prerequisites](#prerequisites)
     - [Creating the `TSDB_DSN` Secret](#creating-the-tsdb_dsn-secret)
     - [Building and Pushing the Docker Image](#building-and-pushing-the-docker-image)
     - [Deploying to Kubernetes](#deploying-to-kubernetes)
     - [Kepler Endpoint Configuration](#kepler-endpoint-configuration)
-    - [License](#license)
-    - [Acknowledgements](#acknowledgements)
 
 ---
 
 ## API Endpoints
 
-### `POST /api/power-consumption`
-Retrieves recent power consumption data for all or specific containers.
-
-*   **Parameters (JSON Body):**
-    *   `n` (optional, integer): Number of most recent blocks to retrieve. Defaults to 5.
-    *   `pod` (optional, string): Filter by pod name.
-    *   `container` (optional, string): Filter by container name.
-    *   `namespace` (optional, string): Filter by namespace.
-*   **Response:** A JSON array of container data, each containing an array of `DataBlock` objects.
-*   **`curl` Example (All containers, last 5 blocks):**
-    ```bash
-    curl -X POST -H "Content-Type: application/json" -d '{}' \\
-    http://localhost:5001/api/power-consumption
-    ```
-*   **`curl` Example (Specific container, last 1 block):**
-    ```bash
-    curl -X POST -H "Content-Type: application/json" -d '{
-        "pod": "busybox-test-84656d96bf-5bs7p",
-        "container": "busybox",
-        "namespace": "default",
-        "n": 1
-    }' http://localhost:5001/api/power-consumption
-    ```
-
 ### `POST /api/co2-per-container`
-Retrieves CO2 emissions data per container for a specified time range or last N measurements, calculated for specified countries.
+Retrieves CO2 emissions data per container, either for a time range or the last N measurements.
 
-*   **Parameters (JSON Body):**
-    *   `pod` (required, string): Filter by pod name.
-    *   `container` (required, string): Filter by container name.
-    *   `namespace` (required, string): Filter by namespace.
-    *   `countries` (required, array of strings): List of ISO2 country codes (e.g., \["DE", "FR"]).
-    *   `start_time` (optional, string): Start timestamp in ISO 8601 format (e.g., "2023-10-27T10:00:00Z").
-    *   `end_time` (optional, string): End timestamp in ISO 8601 format.
-    *   `n` (optional, integer): Number of most recent individual measurements to retrieve.
-    *   **Note:** You must provide either (`start_time` and `end_time`) OR `n`, but not both.
-*   **Response:** A JSON array of detailed measurement objects, each including:
-    *   `timestamp` (string, ISO 8601)
-    *   `joules_per_second` (float)
-    *   `co2_emissions_by_country` (object, mapping country code to emissions data)
-*   **`curl` Example (Time Range):**
-    ```bash
-    # Get current time for example (Python):
-    # import datetime; from datetime import timezone, timedelta; now = datetime.now(timezone.utc); start = now - timedelta(minutes=1); print(f"Start: {start.isoformat()}, End: {now.isoformat()}")
-
-    curl -X POST -H "Content-Type: application/json" -d '{
-        "pod": "busybox-test-84656d96bf-5bs7p",
-        "container": "busybox",
-        "namespace": "default",
-        "countries": ["DE", "FR"],
-        "start_time": "2023-10-27T10:00:00Z",
-        "end_time": "2023-10-27T10:01:00Z"
-    }' http://localhost:5001/api/co2-per-container
-    ```
-*   **`curl` Example (Last N Measurements):**
-    ```bash
-    curl -X POST -H "Content-Type: application/json" -d '{
-        "pod": "busybox-test-84656d96bf-5bs7p",
-        "container": "busybox",
-        "namespace": "default",
-        "countries": ["DE"],
-        "n": 5
-    }' http://localhost:5001/api/co2-per-container
-    ```
+* **Parameters (JSON Body):**
+  * `pod` (required, string)
+  * `container` (required, string)
+  * `namespace` (required, string)
+  * `countries` (optional, array of strings, default `["DE"]`)
+  * `start_time` (optional, ISO 8601 string)
+  * `end_time` (optional, ISO 8601 string)
+  * `n` (optional, integer, default `5`)
+* **Rules:**
+  * Provide both `start_time` and `end_time` for range mode.
+  * If range fields are omitted, last-N mode is used.
+* **Response:**
+  * Top-level metadata (`selection_mode`, `measurement_count`, selected time bounds)
+  * Per-country totals (`co2_g`, `energy_j`)
+  * Per-measurement values (`timestamp`, `joules_per_second`, `co2_gps`, `co2_g`, `intensity_g_per_kwh`)
+* **`curl` Example (Time Range):**
+  ```bash
+  curl -X POST -H "Content-Type: application/json" -d '{
+    "pod": "busybox-worker",
+    "container": "busybox",
+    "namespace": "default",
+    "countries": ["DE", "FR"],
+    "start_time": "2026-02-11T10:00:00Z",
+    "end_time": "2026-02-11T10:10:00Z"
+  }' http://localhost:5001/api/co2-per-container
+  ```
+* **`curl` Example (Last N Measurements):**
+  ```bash
+  curl -X POST -H "Content-Type: application/json" -d '{
+    "pod": "busybox-worker",
+    "container": "busybox",
+    "namespace": "default",
+    "countries": ["DE"],
+    "n": 10
+  }' http://localhost:5001/api/co2-per-container
+  ```
 
 ### `GET /api/containers`
-Get a list of all monitored `(pod, container, namespace)` tuples.
+Returns all currently known `(pod, container, namespace)` tuples.
 
-*   **Response:** A JSON array of objects, each with `pod`, `container`, and `namespace` keys.
-*   **`curl` Example:**
-    ```bash
-    curl http://localhost:5001/api/containers
-    ```
-
+* **`curl` Example:**
+  ```bash
+  curl http://localhost:5001/api/containers
+  ```
 
 ### `GET /api/co2-intensities`
-Return the latest known CO2 intensity per tracked country (hourly).
+Returns latest in-memory CO2 intensity values by country code.
 
-*   **Response:** A JSON array of objects, each with `country`, `hour` (ISO 8601), and `value`.
-*   **`curl` Example:**
-    ```bash
-    curl http://localhost:5001/api/co2-intensities
-    ```
+* **`curl` Example:**
+  ```bash
+  curl http://localhost:5001/api/co2-intensities
+  ```
 
-### `POST /api/co2-range`
-Alias for `/api/co2-per-container` with explicit `start_time` and `end_time` in the request body.
+### `GET /healthz`
+Liveness endpoint.
 
-*   **Parameters:** Same as `/api/co2-per-container` (but typically used with `start_time` and `end_time`).
-*   **Response:** Same as `/api/co2-per-container`.
-*   **`curl` Example:**
-    ```bash
-    # Similar to the time range example for /api/co2-per-container
-    ```
+* **`curl` Example:**
+  ```bash
+  curl http://localhost:5001/healthz
+  ```
 
-### `GET /health`
-Health check endpoint.
+### `GET /readyz`
+Readiness endpoint. Reports startup checks, scraper freshness, and in `db` mode also DB thread/connection health.
 
-*   **Response:** JSON object with `status`, `monitored_containers`, `total_blocks`, `current_blocks`, `mode`, and `timestamp`.
-*   **`curl` Example:**
-    ```bash
-    curl http://localhost:5001/health
-    ```
-
-### `GET /api/status`
-Detailed status endpoint for debugging.
-
-*   **Response:** JSON object with `status`, `last_scrape_time`, `last_measurement_time`, `has_data`, `unique_container_keys`, `pending_db_blocks`, `mode`, and `timestamp`.
-*   **`curl` Example:**
-    ```bash
-    curl http://localhost:5001/api/status
-    ```
+* **`curl` Example:**
+  ```bash
+  curl http://localhost:5001/readyz
+  ```
 
 ---
 
 ## Environment Variables
 
-*   `MODE` (string): Set to `"db"` to enable TimescaleDB persistence. Defaults to `"local"` (uses `MockDatabaseManager`).
-*   `TSDB_DSN` (string): TimescaleDB connection string. Required when `MODE` is `"db"`. Example: `postgresql://user:password@host:port/database`
-*   `EXPORTER_URL` (string): URL of the Kepler Prometheus exporter. Defaults to `http://localhost:9102/metrics`. **In Kubernetes, this should be the service URL of your Kepler deployment.**
+* `MODE` (string): `local` or `db`. Default: `local`.
+* `SAMPLE_INTERVAL` (int): Kepler scrape interval in seconds. Default: `10`.
+* `DB_FLUSH_INTERVAL` (int): DB queue flush interval in seconds (used in `db` mode). Default: `5`.
+* `EXPORTER_URL` (string): Kepler metrics endpoint. Default: `http://localhost:9102/metrics`.
+* `TSDB_DSN` (string): PostgreSQL/TimescaleDB DSN. Required in `MODE=db`.
+* `CHROME_BIN` (string): Optional Chromium binary path.
+* `CHROMEDRIVER_BIN` (string): Optional Chromedriver path.
+
+---
+
+## Mode Behavior (`local` vs `db`)
+
+### `MODE=local`
+* Measurements are kept in in-memory rolling buffers.
+* API queries are served from memory only.
+* Data is lost on restart.
+
+### `MODE=db`
+* Completed measurement blocks are queued and flushed to DB by a background thread.
+* `/api/co2-per-container` reads historical data from DB and merges current in-progress in-memory points.
+* Schema bootstrap is automatic on connect:
+  * creates `container_metrics` table
+  * creates lookup index
+  * attempts Timescale extension + hypertable (falls back to normal PostgreSQL table if unavailable)
+
+**DB safety note:** duplicate prevention is best handled at DB level (unique key + `ON CONFLICT`) if strict idempotency is required.
 
 ---
 
@@ -158,198 +140,97 @@ Detailed status endpoint for debugging.
 
 ### Running Locally
 
-1.  **Clone the repository:**
-    ```bash
-    git clone <your-repo-url>
-    cd co2
-    ```
-2.  **Create a Python virtual environment (recommended):**
-    ```bash
-    python -m venv venv
-    # On Windows
-    .\venv\Scripts\activate
-    # On Linux/macOS
-    source venv/bin/activate
-    ```
-3.  **Install dependencies:**
-    ```bash
-    pip install -r requirements.txt
-    ```
-    You will also need a Chrome/Chromium browser and its WebDriver (e.g., `chromedriver`) installed and accessible in your PATH for CO2 intensity scraping to work.
-4.  **Run the application (no database retention):**
-    ```bash
-    python sth/api2.py
-    ```
-    The API will be available at `http://localhost:5001`. In this default `local` mode, no database manager is initialized, meaning no data is stored in any external database or mock database. Only the in-memory `TimeSeriesManager` cache retains recent power measurements. All data is lost when the application is stopped or restarted. This is ideal for testing API responses, debugging immediate data flows, or monitoring for small time windows without accumulating historical data.
+1. Clone and enter repo.
+2. Create and activate a virtual environment.
+3. Install dependencies:
+   ```bash
+   pip install -r requirement.txt
+   ```
+4. Run:
+   ```bash
+   MODE=local SAMPLE_INTERVAL=10 python -m app.main
+   ```
 
-You can also dockerize and deploy the application in local mode by changing the k8s-deployment.yaml file to set `MODE` to `local` and removing the `TSDB_DSN` environment variable. This will retain the same behavior as running locally without a database. Alternatively for some scenarios, you can use the `MockDatabaseManager` in `db` mode as described below, or use a real TimescaleDB instance for persistent storage.
+### Running in DB Mode Locally
 
-### Testing with Mock DB (DB Mode without a real DB) 
-(!!Currently out of order!!)
-
-To test the "db mode" logic while still using the in-memory `MockDatabaseManager` (useful for local development without a real database connection):
-
-1.  **Set environment variables:**
-    *   **Windows (PowerShell):**
-        ```powershell
-        $env:MODE="db"
-        $env:TSDB_DSN=""
-        ```
-    *   **Linux/macOS (Bash/Zsh):**
-        ```bash
-        export MODE="db"
-        export TSDB_DSN=""
-        ```
-2.  **Run the application:**
-    ```bash
-    python sth/api2.py
-    ```
-    You will see `INFO:root:Running in local/mock DB mode.`, but the application's logic will use the "db mode" code paths, interacting with the `MockDatabaseManager`.
-3.  **Make `curl` requests:** Use the `curl` examples provided in the [API Endpoints](#api-endpoints) section to test. Give the application some time (e.g., 20-30 seconds after startup) for background scraping threads to populate initial data.
+1. Start PostgreSQL/TimescaleDB.
+2. Export DSN and mode:
+   ```bash
+   MODE=db
+   TSDB_DSN=postgresql://postgres:postgres@localhost:5432/co2
+   SAMPLE_INTERVAL=10
+   DB_FLUSH_INTERVAL=5
+   python -m app.main
+   ```
+3. Verify:
+   * `GET /readyz` should return `200`.
+   * Query `container_metrics` to confirm inserts.
 
 ---
 
 ## Kubernetes Deployment
 
-This section guides you through deploying the CO2 monitoring API to a Kubernetes cluster.
-
 ### Prerequisites
 
-*   A running Kubernetes cluster.
-*   `kubectl` configured to communicate with your cluster.
-*   TimescaleDB (or compatible PostgreSQL) instance accessible from your cluster.
-*   Kepler deployed in your cluster, with its Prometheus exporter accessible.
-*   Docker or a compatible containerization tool.
+* Kubernetes cluster
+* `kubectl` configured
+* Kepler deployed and reachable
+* PostgreSQL/TimescaleDB reachable from cluster (if using `MODE=db`)
 
 ### Creating the `TSDB_DSN` Secret
 
-Your TimescaleDB connection string (`TSDB_DSN`) contains sensitive information. We will store it as a Kubernetes Secret.
-
-1.  **Encode your `TSDB_DSN` string in Base64:**
-    ```bash
-    echo -n "postgresql://user:password@host:port/database" | base64
-    ```
-    Replace `"postgresql://user:password@host:port/database"` with your actual TimescaleDB connection string.
-2.  **Create a `Secret` YAML file (e.g., `db-secret.yaml`):**
-    ```yaml
-    apiVersion: v1
-    kind: Secret
-    metadata:
-      name: co2-db-secret
-    type: Opaque
-    data:
-      TSDB_DSN: <your-base64-encoded-dsn>
-    ```
-    Replace `<your-base64-encoded-dsn>` with the output from the `base64` command.
-3.  **Apply the secret to your cluster:**
-    ```bash
-    kubectl apply -f db-secret.yaml
-    ```
+1. Encode DSN:
+   ```bash
+   echo -n "postgresql://user:password@host:5432/co2" | base64
+   ```
+2. Create secret manifest:
+   ```yaml
+   apiVersion: v1
+   kind: Secret
+   metadata:
+     name: co2-db-secret
+   type: Opaque
+   data:
+     TSDB_DSN: <base64-encoded-dsn>
+   ```
+3. Apply:
+   ```bash
+   kubectl apply -f db-secret.yaml
+   ```
 
 ### Building and Pushing the Docker Image
 
-1.  **Ensure you have a `requirements.txt` file** containing all Python dependencies (Flask, requests, prometheus\_client, beautifulsoup4, selenium, psycopg2-binary, etc.). If not, create it:
-    ```bash
-    pip freeze > requirements.txt
-    ```
-2.  **Build the Docker image:**
-    ```bash
-    docker build -t your-docker-repo/co2-api:latest .
-    ```
-    Replace `your-docker-repo` with your Docker Hub username or private registry.
-3.  **Push the Docker image to your registry:**
-    ```bash
-    docker push your-docker-repo/co2-api:latest
-    ```
+```bash
+docker build -t your-repo/co2-api:latest .
+docker push your-repo/co2-api:latest
+```
 
 ### Deploying to Kubernetes
 
-Here's the `k8s-deployment.yaml` file for deploying the application. This includes a `Deployment` and a `Service`.
+Use `k8s/deployment.yaml` and set environment values:
 
-*(Note: Ensure Kepler is already deployed and its service is accessible within the cluster. Replace `kepler-exporter.kepler.svc.cluster.local:9102` with the actual service endpoint of your Kepler Prometheus exporter if it's different in your cluster.)*
+* Local mode:
+  * `MODE=local`
+* DB mode:
+  * `MODE=db`
+  * `TSDB_DSN` from Kubernetes secret
 
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: co2-api-deployment
-  labels:
-    app: co2-api
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: co2-api
-  template:
-    metadata:
-      labels:
-        app: co2-api
-    spec:
-      containers:
-      - name: co2-api
-        image: your-docker-repo/co2-api:latest # Replace with your image
-        ports:
-        - containerPort: 5001
-        env:
-        - name: MODE
-          value: "db" # Enable DB mode for persistent storage
-        - name: EXPORTER_URL
-          value: "http://kepler-exporter.kepler.svc.cluster.local:9102/metrics" # Kepler service endpoint
-        - name: TSDB_DSN # Reference the secret for the database connection string
-          valueFrom:
-            secretKeyRef:
-              name: co2-db-secret
-              key: TSDB_DSN
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: co2-api-service
-spec:
-  selector:
-    app: co2-api
-  ports:
-    - protocol: TCP
-      port: 5001
-      targetPort: 5001
-  type: LoadBalancer # Use LoadBalancer for external access, or ClusterIP for internal only
+Apply:
+```bash
+kubectl apply -f k8s/deployment.yaml
+kubectl get pods -l app=co2-api
+kubectl get svc co2-api-service
 ```
-1.  **Save the deployment YAML:** Save the above content as `k8s-deployment.yaml`.
-2.  **Apply the deployment to your cluster:**
-    ```bash
-    kubectl apply -f k8s-deployment.yaml
-    ```
-3.  **Check deployment status:**
-    ```bash
-    kubectl get pods -l app=co2-api
-    kubectl get svc co2-api-service
-    ```
-    Once the service is running, you can get its external IP (if using `LoadBalancer`) to access your API.
 
 ### Kepler Endpoint Configuration
 
-**Important:** The `EXPORTER_URL` environment variable in the `k8s-deployment.yaml` is set to `http://kepler-exporter.kepler.svc.cluster.local:9102/metrics`. This is a common service endpoint for Kepler's Prometheus exporter within a Kubernetes cluster.
+Set `EXPORTER_URL` to your Kepler metrics service URL inside the cluster (for example):
 
-*   `kepler-exporter`: This is typically the name of the Kubernetes `Service` that exposes Kepler's metrics.
-*   `kepler`: This is the namespace where Kepler is deployed.
-*   `svc.cluster.local`: This is the default domain for Kubernetes services.
-
-**Verify this endpoint in your cluster.** If your Kepler deployment uses a different service name, namespace, or port, you must update the `EXPORTER_URL` value in your `k8s-deployment.yaml` accordingly. You can typically find this information by running:
-```bash
-kubectl get svc -n <kepler-namespace>
+```text
+http://kepler.kepler.svc.cluster.local:9102/metrics
 ```
-and looking for the service exposing port 9102 (or similar).
 
-
-### License
-
-CO2 Emissions Monitoring API is distributed under the MIT License. See LICENSE for more information.
-
-
-### Acknowledgements
-
-[CO2 Emissions Monitoring API](https://github.com/E3-JSI/co2-emissions-prediction) is developed by the
-[Department for Artificial Intelligence](http://ailab.ijs.si/) at the
-[Jozef Stefan Institute](http://www.ijs.si/), and other contributors.
-
-The project has received funding from the European Union's Horizon Europe innovation programme under Grant Agreement No 101092639 ([FAME](https://www.fame-horizon.eu/)).
+Verify the service in your cluster:
+```bash
+kubectl get svc -A | grep -i kepler
+```
